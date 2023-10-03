@@ -4,24 +4,6 @@ on:
       - main
 
 jobs:
-  lint:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-python@v4
-        with:
-          python-version: 3.11
-      - name: Set up pip cache
-        if: runner.os == 'Linux'
-        uses: actions/cache@v3
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('pyproject.toml') }}
-          restore-keys: ${{ runner.os }}-pip-
-      - name: Install Hatch
-        run: pipx install hatch
-      - run: hatch run check
-
   test:
     runs-on: ubuntu-latest
     steps:
@@ -38,4 +20,7 @@ jobs:
           restore-keys: ${{ runner.os }}-pip-
       - name: Install Hatch
         run: pipx install hatch
-      - run: hatch env run -e test test
+      - name: Lint check
+        run: hatch run check
+      - name: Run tests
+        run: hatch env run -e test test
