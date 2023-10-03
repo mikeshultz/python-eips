@@ -90,5 +90,19 @@ eips show -i 4626
 ### Run Tests
 
 ```bash
-hatch env run -e test test
+hatch run test
+```
+
+### Linting
+
+```bash
+hatch run lint
+```
+
+### Build & Publish
+
+```bash
+hatch build -t sdist -t wheel
+hatch publish -r test
+hatch publish
 ```
