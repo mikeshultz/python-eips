@@ -1,5 +1,7 @@
 from enum import Enum
-from typing import Dict, List, Optional, Self
+from typing import Dict, List, Optional
+
+from typing_extensions import Self  # Support addded in 3.11
 
 
 class EIPStatus(str, Enum):

@@ -31,6 +31,7 @@ dependencies = [
   "dulwich~=0.21.6",
   "pydantic~=2.3.0",
   "python-dateutil~=2.8.2",
+  "typing_extensions>=4.0, <5"
 ]
 
 [project.optional-dependencies]
@@ -77,6 +78,7 @@ python = "3.11"
 test = "pytest {args}"
 coverage = "test --cov-config=pyproject.toml --cov=eips"
 lint = "isort . && black ."
+check = "isort --check . && black --check ."
 
 [[tool.hatch.envs.test.matrix]]
 python = ["3.8", "3.9", "3.10", "3.11"]

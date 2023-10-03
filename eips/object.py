@@ -1,7 +1,8 @@
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Self, Union
+from typing import Any, Dict, List, Optional, Union
 
-from pydantic import BaseModel, ConfigDict, ValidationError
+from pydantic import BaseModel, ConfigDict
+from typing_extensions import Self  # Support addded in 3.11
 
 from eips.enum import EIPCategory, EIPStatus, EIPType
 from eips.parsing import pluck_headers
