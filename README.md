@@ -99,10 +99,15 @@ hatch run test
 hatch run lint
 ```
 
-### Build & Publish
+### Release
 
 ```bash
-hatch build -t sdist -t wheel
-hatch publish -r test
-hatch publish
+# Bump the version major/minor/patch
+hatch version patch
+# Tag the git commit with the version
+git tag -a "v$(hatch version)" -m "v$(hatch version)"
+# Push it up to GH, don't forget the tag
+git push --follow-tags
 ```
+
+Now [create a GitHub release](https://github.com/mikeshultz/python-eips/releases/new) and CI will do the rest.
