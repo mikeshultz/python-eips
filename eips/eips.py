@@ -1,95 +1,115 @@
-from datetime import datetime, timedelta
+"""EIPs and ERCs ETL machinery."""
+
+from abc import abstractmethod
+from datetime import timedelta
 from pathlib import Path
-from typing import Iterator, List, Optional
+from typing import Iterator, List, Optional, Sequence
 
-from eips.const import EIPS_DIR, IGNORE_FILES, REPO_DIR
-from eips.enum import EIPCategory, EIPStatus, EIPType
+from eips.const import DATA_PATH, IGNORE_FILES, REPO_DIR
+from eips.enum import EIP1Category, EIP1Status, EIP1Type
 from eips.git import ensure_repo_updated
-from eips.logging import getLogger
-from eips.object import EIP, CommitHash, CommitRef, EIPsStats, FlexId
-from eips.util import eip_id_from_file
+from eips.logging import get_logger
+from eips.object import EIP, ERC, CommitHash, CommitRef, EIP1Document, EIPsStats, FlexId
+from eips.util import doc_id_from_file
 
-log = getLogger(__name__)
-is_eip_file = lambda f: f.name.endswith(".md") and f.name not in IGNORE_FILES
-filter_eip_files = lambda fdir: list(filter(is_eip_file, fdir.iterdir()))
+log = get_logger(__name__)
 
 
-class EIPs:
-    """EIPs ETL machinery"""
+def is_doc_file(f: Path) -> bool:
+    """Is the given Path an design doc file?"""
+    return f.name.endswith(".md") and f.name not in IGNORE_FILES
+
+
+def filter_doc_files(fdir: Path) -> list[Path]:
+    """Return a list of Ethereum design files in the given directory."""
+    return list(filter(is_doc_file, fdir.iterdir()))
+
+
+class EthereumDocs:
+    """Ethereum Docs ETL machinery"""
 
     def __init__(
         self,
-        freshness: timedelta = timedelta(seconds=60),
-        repo: str = "https://github.com/ethereum/EIPs",
-        update_on_fetch: bool = False,
-        workdir: Path = Path("~/.config/eips").expanduser().resolve(),
+        freshness: timedelta,
+        repo: str,
+        update_on_fetch: bool,
+        workdir: Path,
     ):
-        self.commit: Optional[CommitRef] = None
+        """Initialize an Ethereum design document object."""
         self.freshness = freshness
         self.repo = repo
         self.update_on_fetch = update_on_fetch
         self.workdir = workdir
         self.repo_path = self.workdir.joinpath(REPO_DIR)
+        self.docs_dir = self.repo_path.joinpath("docs")
 
-    def __getitem__(self, eip_id: int) -> Optional[EIP]:
+    def __getitem__(self, eip_id: int) -> Optional[EIP1Document]:
+        """Return an EIP-1 document by ID."""
         e = self.get(eip_id)
         print("-__getitem__ e:", e)
         return e[0] if len(e) else None
 
     def __len__(self) -> int:
+        """Return the total number of documents."""
         return self.len()
 
-    def __iter__(self) -> Iterator[EIP]:
-        for x in self.get():
-            yield x
+    def __iter__(self) -> Iterator[EIP1Document]:
+        """Iterate over all documents."""
+        yield from self.get()
 
     @property
-    def _eip_files(self) -> List[Path]:
+    def _files(self) -> List[Path]:
         try:
-            return filter_eip_files(self.repo_path.joinpath(EIPS_DIR))
+            return filter_doc_files(self.docs_dir)
         except FileNotFoundError:
             return []
 
-    def _set_meta(self, updated: Optional[datetime] = None) -> None:
-        """Set the metadata for this repo."""
-        ...
-
     def check(
         self,
-        eip_id: Optional[FlexId] = None,
-        commit: Optional[CommitRef] = None,
+        doc_id: FlexId | None = None,
+        *,
+        commit: CommitRef | None = None,
     ) -> bool:
-        return all(eip.is_valid for eip in self.get(eip_id, commit))
+        """Check if all documents are valid."""
+        return all(doc.is_valid for doc in self.get(doc_id, commit=commit))
 
+    @abstractmethod
     def get(
         self,
-        eip_id: Optional[FlexId] = None,
-        commit: Optional[CommitRef] = None,
-    ) -> List[EIP]:
-        """Return EIP(s) by ID"""
+        doc_id: FlexId | None = None,
+        *,
+        commit: CommitRef | None = None,
+    ) -> Sequence[EIP1Document]:
+        """Return document(s) by ID(s)."""
+        pass
+
+    def _get_doc(
+        self,
+        doc_id: FlexId | None = None,
+        commit: CommitRef | None = None,
+    ) -> list[Path]:
         if commit is not None:
             raise NotImplementedError("commit seeking not implemented")
 
-        current_commit = self.repo_fetch()
+        if doc_id is None or (isinstance(doc_id, list) and len(doc_id) == 0):
+            # Return all docs
+            return self._files
+            # return [
+            #     EIP.parse(current_commit, fil.read_text()) for fil in self._files
+            # ]
+        elif isinstance(doc_id, int):
+            doc_id = [doc_id]
 
-        if eip_id is None or (isinstance(eip_id, list) and len(eip_id) == 0):
-            # Return all EIPs
-            return [
-                EIP.parse(current_commit, fil.read_text()) for fil in self._eip_files
-            ]
-        elif isinstance(eip_id, int):
-            eip_id = [eip_id]
+        assert isinstance(doc_id, list)
 
-        assert isinstance(eip_id, list)
+        def is_match(f: Path) -> bool:
+            return doc_id_from_file(f.name) in doc_id
 
-        is_match = lambda f: eip_id_from_file(f.name) in eip_id
-        filtered_files = filter(is_match, self._eip_files)
-
-        return [EIP.parse(current_commit, fil.read_text()) for fil in filtered_files]
+        return list(filter(is_match, self._files))
 
     def len(self) -> int:
         """Total EIPs in the repo"""
-        return len(self._eip_files)
+        return len(self._files)
 
     def logs(self) -> List[str]:
         """Return commit messages for the given EIP"""
@@ -101,17 +121,17 @@ class EIPs:
 
     def stats(self, commit: Optional[CommitRef] = None) -> EIPsStats:
         """Return some aggregate data based on EIP files"""
-        categories: List[EIPCategory] = []
-        statuses: List[EIPStatus] = []
-        types: List[EIPType] = []
+        categories: list[EIP1Category] = []
+        statuses: list[EIP1Status] = []
+        types: list[EIP1Type] = []
 
         for eip in self.get():
             if eip.category not in categories and eip.category is not None:
                 categories.append(eip.category)
-            if eip.eip_status not in statuses:
-                statuses.append(eip.eip_status)
-            if eip.eip_type not in types:
-                types.append(eip.eip_type)
+            if eip.status not in statuses:
+                statuses.append(eip.status)
+            if eip.type and eip.type not in types:
+                types.append(eip.type)
 
         return EIPsStats(
             errors=0,
@@ -120,3 +140,60 @@ class EIPs:
             total=self.len(),
             types=types,
         )
+
+
+class EIPs(EthereumDocs):
+    """EIPs ETL machinery"""
+
+    def __init__(
+        self,
+        freshness: timedelta = timedelta(seconds=60),
+        repo: str = "https://github.com/ethereum/EIPs",
+        update_on_fetch: bool = False,
+        workdir: Path = Path(DATA_PATH).expanduser().resolve().joinpath("eips"),
+    ):
+        """Initialize an EIPs ETL processor."""
+        super().__init__(freshness, repo, update_on_fetch, workdir)
+        self.docs_dir = self.repo_path.joinpath("EIPS")
+        print("----------docs_dir", self.docs_dir)
+
+    def get(
+        self,
+        doc_id: FlexId | None = None,
+        *,
+        commit: CommitRef | None = None,
+    ) -> Sequence[EIP]:
+        """Return EIP(s) by ID(s)."""
+        current_commit = self.repo_fetch()
+        return [
+            EIP.parse(current_commit, fil.read_text())
+            for fil in self._get_doc(doc_id, commit)
+        ]
+
+
+class ERCs(EthereumDocs):
+    """ERCs ETL machinery"""
+
+    def __init__(
+        self,
+        freshness: timedelta = timedelta(seconds=60),
+        repo: str = "https://github.com/ethereum/ERCs",
+        update_on_fetch: bool = False,
+        workdir: Path = Path(DATA_PATH).expanduser().resolve().joinpath("ercs"),
+    ):
+        """Initialize an ERCs ETL processor."""
+        super().__init__(freshness, repo, update_on_fetch, workdir)
+        self.docs_dir = self.repo_path.joinpath("ERCS")
+
+    def get(
+        self,
+        doc_id: FlexId | None = None,
+        *,
+        commit: CommitRef | None = None,
+    ) -> Sequence[ERC]:
+        """Return ERC(s) by ID(s)"""
+        current_commit = self.repo_fetch()
+        return [
+            ERC.parse(current_commit, fil.read_text())
+            for fil in self._get_doc(doc_id, commit)
+        ]

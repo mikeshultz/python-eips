@@ -1,34 +1,36 @@
+"""EIP1 document parsing utilities."""
+
 import re
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple, Union
 
 from dateutil.parser import parse as dateutil_parse
 
-from eips.enum import EIPCategory, EIPStatus, EIPType
-from eips.logging import getLogger
+from eips.enum import EIP1Category, EIP1Status, EIP1Type
+from eips.logging import get_logger
 
 HeaderValueType = Optional[
-    Union[datetime, EIPCategory, EIPStatus, EIPType, List[int], str]
+    Union[datetime, EIP1Category, EIP1Status, EIP1Type, List[int], str]
 ]
 HeadersType = Dict[str, HeaderValueType]
 
 
 # Ref: https://www.w3.org/Protocols/rfc822/3_Lexical.html#z1
 RFC_822_HEADER = (
-    r'^([\w\-]+)\: ([\w\s\number\/\:\?\.\,;@&\*<>\[\]\(\)’\'"`_\^\-\—\+=]*)$'
+    r'^([\w\-]+)\: ([\w\s\number\/\:\?\.\,;@&\*<>\[\]\(\)’\'"`_\^\-\—\+=]*)$'  # noqa: RUF001
 )
 HEADER_MAPPING = {
-    "eip": "eip_id",
-    "status": "eip_status",
-    "type": "eip_type",
+    "eip": "id",
+    # "status": "eip_status",
+    # "type": "eip_type",
 }
 
-log = getLogger(__name__)
+log = get_logger(__name__)
 header_translators = {
     "author": lambda v: list(map(lambda x: x.strip(), v.split(","))),
-    "category": lambda v: EIPCategory.get_by_val(v),
-    "eip_status": lambda v: EIPStatus.get_by_val(v),
-    "eip_type": lambda v: EIPType.get_by_val(v),
+    "category": lambda v: EIP1Category.get_by_val(v),
+    "status": lambda v: EIP1Status.get_by_val(v),
+    "type": lambda v: EIP1Type.get_by_val(v),
     # TODO: Vsauce, fragile lambdas here
     "created": lambda v: dateutil_parse(v),
     "requires": lambda v: list(map(lambda x: int(x.strip()), v.split(","))),
@@ -36,20 +38,22 @@ header_translators = {
 
 
 def normalize_header(name: str) -> str:
+    """Normalize header name to snake_case."""
     return name.replace("-", "_").strip().lower()
 
 
 def normalize_header_line(name: str) -> str:
     """Replace known weird characters with less weird characters
 
-    Note: This isn't a security measure, it just eases parsing with seen chars.  It might
-    be worth just allowing all unicode in the regex, but for now being defensive and
-    failing is a bit of an alerting mechanism.
+    Note: This isn't a security measure, it just eases parsing with known chars.  It
+    might be worth just allowing all unicode in the regex, but for now being defensive
+    and failing is a bit of an alerting mechanism.
     """
     return (
         name
         # Weird quotes
-        .replace("“", '"').replace("”", '"')
+        .replace("“", '"')
+        .replace("”", '"')
         # Zero width non-joiner or whatever
         .replace("\u200c", " ")
         # Basic cleanup
@@ -58,8 +62,7 @@ def normalize_header_line(name: str) -> str:
 
 
 def pluck_headers(eip_text: str) -> Tuple[HeadersType, str]:
-    """Remove and return the RFC 822 headers from EIP text"""
-
+    """Remove and return the RFC 822 headers from EIP text."""
     lines = eip_text.split("\n")
     line_count = 0
     headers: HeadersType = {}
@@ -74,8 +77,9 @@ def pluck_headers(eip_text: str) -> Tuple[HeadersType, str]:
             break
         matches = re.fullmatch(RFC_822_HEADER, normalize_header_line(ln))
         if not matches or len(matches.groups()) != 2:
-            # TODO: Need to store this somewhere for later reference instead of just logging
-            log.warn(f"EIP header line parse failed: {ln}")
+            # TODO: Need to store this somewhere for later reference instead of just
+            #       logging.
+            log.warning(f"EIP header line parse failed: {ln}")
         else:
             normal_header = normalize_header(matches.group(1))
             # Translating to EIP object

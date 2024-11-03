@@ -1,3 +1,5 @@
+"""Package logging."""
+
 import logging
 
 
@@ -15,20 +17,20 @@ class ConsoleStyle:
 
 
 fmts = {
-    logging.CRITICAL: "{}%(levelname)s{} \t %(message)s".format(
-        ConsoleStyle.CRITICAL, ConsoleStyle.END
+    logging.CRITICAL: (
+        f"{ConsoleStyle.CRITICAL}%(levelname)s{ConsoleStyle.END} \t %(message)s"
     ),
-    logging.ERROR: "{}%(levelname)s{} \t %(message)s".format(
-        ConsoleStyle.ERROR, ConsoleStyle.END
+    logging.ERROR: (
+        f"{ConsoleStyle.ERROR}%(levelname)s{ConsoleStyle.END} \t %(message)s"
     ),
-    logging.WARNING: "{}%(levelname)s{} \t %(message)s".format(
-        ConsoleStyle.WARNING, ConsoleStyle.END
+    logging.WARNING: (
+        f"{ConsoleStyle.WARNING}%(levelname)s{ConsoleStyle.END} \t %(message)s"
     ),
-    logging.INFO: "{}%(levelname)s{} \t\t %(message)s".format(
-        ConsoleStyle.OKGREEN, ConsoleStyle.END
+    logging.INFO: (
+        f"{ConsoleStyle.OKGREEN}%(levelname)s{ConsoleStyle.END} \t\t %(message)s"
     ),
-    logging.DEBUG: "{}%(levelname)s{} \t %(message)s".format(
-        ConsoleStyle.OKBLUE, ConsoleStyle.END
+    logging.DEBUG: (
+        f"{ConsoleStyle.OKBLUE}%(levelname)s{ConsoleStyle.END} \t %(message)s"
     ),
 }
 
@@ -53,6 +55,7 @@ class ColoredFormatter(logging.Formatter):
         style: str = "%",
         validate: bool = True,
     ) -> None:
+        """Initialize the ColoredFormatter."""
         self._style = ColoredStyle(fmt)
 
         if validate:
@@ -71,7 +74,8 @@ console_handler.setFormatter(formatter)
 parent_logger.addHandler(console_handler)
 
 
-def setDebugLogging() -> None:
+def set_debug_logging() -> None:
+    """Set the logging level to debug."""
     console_handler.setLevel(logging.DEBUG)
     parent_logger.setLevel(logging.DEBUG)
 
@@ -80,9 +84,6 @@ console_handler.setLevel(logging.INFO)
 parent_logger.setLevel(logging.INFO)
 
 
-def getLogger(name: str) -> logging.Logger:
+def get_logger(name: str) -> logging.Logger:
+    """Get a logger with the given name."""
     return parent_logger.getChild(name)
-
-
-def loggingShutdown() -> None:
-    return logging.shutdown()

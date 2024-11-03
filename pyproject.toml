@@ -14,57 +14,48 @@ classifiers = [
   "Development Status :: 3 - Alpha",
   "Intended Audience :: Developers",
   "License :: OSI Approved :: MIT License",
-  "Programming Language :: Python :: 3.8",
-  "Programming Language :: Python :: 3.9",
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
   "Operating System :: OS Independent",
   "Topic :: Software Development :: Libraries :: Python Modules",
   "Topic :: Utilities",
 ]
 
 readme = "README.md"
-requires-python = ">=3.8"
-license = {text = "MIT License"}
+requires-python = ">=3.10"
+license = {file = "LICENSE"}
 dependencies = [
   "click~=8.1",
-  "dulwich~=0.21.6",
-  "pydantic~=2.3.0",
+  "dulwich~=0.22.4",
+  "pydantic~=2.9",
   "python-dateutil~=2.8.2",
   "typing_extensions>=4.0, <5"
 ]
 
 [project.optional-dependencies]
 dev = [
-  "black>=23.9.1",
-  "hatch>=1.7.0",
-  "isort>=5.12.0",
-  "mypy>=1.5.1",
+  "hatch>=1.13,<2",
+  "hatch-vcs~=0.4.0",
+  "pyright~=1.1.387",
   "pytest>=7.4.2",
   "pytest-cov>=4.1.0",
+  "ruff~=0.7.2",
 ]
 
 [project.urls]
-#Documentation = "..."
-"Source code" = "https://github.com/mikeshultz/eips"
+source = "https://github.com/mikeshultz/eips"
 
 [project.scripts]
-eips = "eips.cli:main"
+eips = "eips.cli:eips_cli"
+ercs = "eips.cli:ercs_cli"
 
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
 
 [publish.index.repos.test]
 url = "https://test.pypi.org/legacy/"
-
-[tool.coverage.run]
-branch = true
-
-[tool.coverage.report]
-show_missing = true
-skip_covered = true
-skip_empty = true
 
 [tool.hatch.envs.default]
 # TODO: Windows might work?
@@ -77,37 +68,58 @@ python = "3.11"
 [tool.hatch.envs.default.scripts]
 test = "pytest {args}"
 coverage = "test --cov-config=pyproject.toml --cov=eips"
-lint = "isort . && black ."
-check = "isort --check . && black --check ."
+lint = "ruff format"
+check = "ruff check && ruff format --check && pyright"
 
-[[tool.hatch.envs.test.matrix]]
-python = ["3.8", "3.9", "3.10", "3.11"]
+[[tool.hatch.envs.hatch-test.matrix]]
+python = ["3.10", "3.11", "3.12"]
 feature = ["dev"]
 
 [tool.hatch.metadata]
 allow-direct-references = true
 
 [tool.hatch.version]
-path = "eips/__init__.py"
+source = "vcs"
 
-[tool.isort]
-follow_links = false
-profile = "black"
-skip_gitignore = true
-src_paths = ["eips", "tests"]
+[tool.pyright]
+include = ["eips", "tests"]
+ignore = ["build/"]
 
-[tool.mypy]
-plugins = "pydantic.mypy"
+[tool.ruff]
+# Mimic's black's default line length
+line-length = 88
 
-follow_imports = "silent"
-warn_redundant_casts = true
-warn_unused_ignores = true
-disallow_any_generics = true
-check_untyped_defs = true
-no_implicit_reexport = true
-disallow_untyped_defs = true
+[tool.ruff.lint]
+# Ref: https://docs.astral.sh/ruff/rules
+exclude = ["setup.py"]
+extend-select = [
+    "D",    # pydocstyle
+    "E501", # Line length
+    "I",    # isort
+    "N",    # PEP8 naming
+    "UP",   # pyupgrade
+    "RUF",  # ruf-specific rules
+    "W",    # warnings
+]
+ignore = ["D400"]
+# Allow unused variables when underscore-prefixed.
+dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 
-[tool.pydantic-mypy]
-init_forbid_extra = true
-init_typed = true
-warn_required_dynamic_aliases = true
+[tool.ruff.lint.per-file-ignores]
+"tests/test_*.py" = ["D"]
+"tests/conftest.py" = ["D"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "pep257"
+
+[tool.pytest.ini_options]
+python_files = "test_*.py"
+testpaths = "tests"
+
+[tool.coverage.run]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+skip_empty = true

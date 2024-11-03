@@ -1,4 +1,7 @@
-from eips.cli import main
+"""This module is the entry point for the EIPS CLI application."""
+
+from eips.cli import eips_cli
 
 if __name__ == "__main__":
-    main()
+    # TODO: Add support for `ercs` commands
+    eips_cli()
