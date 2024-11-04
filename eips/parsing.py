@@ -2,15 +2,18 @@
 
 import re
 from datetime import datetime
+from typing import TypeAlias
 
 from dateutil.parser import parse as dateutil_parse
 
 from eips.enum import EIP1Category, EIP1Status, EIP1Type
 from eips.logging import get_logger
 
-type HeaderValueType = datetime | EIP1Category | EIP1Status | EIP1Type | list[int] | str
-type OptionalHeaderValueType = HeaderValueType | None
-type HeadersType = dict[str, OptionalHeaderValueType]
+HeaderValueType: TypeAlias = (
+    datetime | EIP1Category | EIP1Status | EIP1Type | list[int] | str
+)
+OptionalHeaderValueType: TypeAlias = HeaderValueType | None
+HeadersType: TypeAlias = dict[str, OptionalHeaderValueType]
 
 
 # Ref: https://www.w3.org/Protocols/rfc822/3_Lexical.html#z1

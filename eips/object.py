@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any
+from typing import Any, TypeAlias
 
 from pydantic import BaseModel, ConfigDict
 from typing_extensions import Self  # Support addded in 3.11
@@ -26,8 +26,8 @@ class CommitHash(str):
         return f"CommitHash(value={self.__str__()!r})"
 
 
-type CommitRef = CommitHash | str
-type FlexId = int | list[int]
+CommitRef: TypeAlias = CommitHash | str
+FlexId: TypeAlias = int | list[int]
 
 
 class EIP1Document(BaseModel):
