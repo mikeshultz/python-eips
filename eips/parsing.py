@@ -2,17 +2,15 @@
 
 import re
 from datetime import datetime
-from typing import Dict, List, Optional, Tuple, Union
 
 from dateutil.parser import parse as dateutil_parse
 
 from eips.enum import EIP1Category, EIP1Status, EIP1Type
 from eips.logging import get_logger
 
-HeaderValueType = Optional[
-    Union[datetime, EIP1Category, EIP1Status, EIP1Type, List[int], str]
-]
-HeadersType = Dict[str, HeaderValueType]
+type HeaderValueType = datetime | EIP1Category | EIP1Status | EIP1Type | list[int] | str
+type OptionalHeaderValueType = HeaderValueType | None
+type HeadersType = dict[str, OptionalHeaderValueType]
 
 
 # Ref: https://www.w3.org/Protocols/rfc822/3_Lexical.html#z1
@@ -61,7 +59,7 @@ def normalize_header_line(name: str) -> str:
     )
 
 
-def pluck_headers(eip_text: str) -> Tuple[HeadersType, str]:
+def pluck_headers(eip_text: str) -> tuple[HeadersType, str]:
     """Remove and return the RFC 822 headers from EIP text."""
     lines = eip_text.split("\n")
     line_count = 0
@@ -85,7 +83,7 @@ def pluck_headers(eip_text: str) -> Tuple[HeadersType, str]:
             # Translating to EIP object
             hkey = HEADER_MAPPING.get(normal_header, normal_header)
 
-            hval: HeaderValueType
+            hval: OptionalHeaderValueType = None
             if hkey in header_translators:
                 hval = header_translators[hkey](matches.group(2))
             else:

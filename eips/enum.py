@@ -1,7 +1,6 @@
 """Enum definitions for eips package."""
 
 from enum import Enum
-from typing import Optional
 
 from typing_extensions import Self  # Support addded in 3.11
 
@@ -29,7 +28,7 @@ class EIP1Status(str, Enum):
     MOVED = "Moved"
 
     @classmethod
-    def get_by_val(cls, v: str) -> Optional[Self]:
+    def get_by_val(cls, v: str) -> Self | None:
         """Get an EIP1Status by value."""
         if not v:
             return None
@@ -49,7 +48,7 @@ class EIP1Type(str, Enum):
     META = "Meta"
 
     @classmethod
-    def get_by_val(cls, v: str) -> Optional[Self]:
+    def get_by_val(cls, v: str) -> Self | None:
         """Get an EIP1Type by value."""
         if not v:
             return None
@@ -70,7 +69,7 @@ class EIP1Category(str, Enum):
     ERC = "ERC"
 
     @classmethod
-    def get_by_val(cls, v: str) -> Optional[Self]:
+    def get_by_val(cls, v: str) -> Self | None:
         """Get an EIP1Category by value."""
         if not v:
             return None

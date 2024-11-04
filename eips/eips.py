@@ -1,9 +1,9 @@
 """EIPs and ERCs ETL machinery."""
 
 from abc import abstractmethod
+from collections.abc import Iterator, Sequence
 from datetime import timedelta
 from pathlib import Path
-from typing import Iterator, List, Optional, Sequence
 
 from eips.const import DATA_PATH, IGNORE_FILES, REPO_DIR
 from eips.enum import EIP1Category, EIP1Status, EIP1Type
@@ -43,7 +43,7 @@ class EthereumDocs:
         self.repo_path = self.workdir.joinpath(REPO_DIR)
         self.docs_dir = self.repo_path.joinpath("docs")
 
-    def __getitem__(self, eip_id: int) -> Optional[EIP1Document]:
+    def __getitem__(self, eip_id: int) -> EIP1Document | None:
         """Return an EIP-1 document by ID."""
         e = self.get(eip_id)
         print("-__getitem__ e:", e)
@@ -58,7 +58,7 @@ class EthereumDocs:
         yield from self.get()
 
     @property
-    def _files(self) -> List[Path]:
+    def _files(self) -> list[Path]:
         try:
             return filter_doc_files(self.docs_dir)
         except FileNotFoundError:
@@ -111,7 +111,7 @@ class EthereumDocs:
         """Total EIPs in the repo"""
         return len(self._files)
 
-    def logs(self) -> List[str]:
+    def logs(self) -> list[str]:
         """Return commit messages for the given EIP"""
         raise NotImplementedError("TODO")
 
@@ -119,7 +119,7 @@ class EthereumDocs:
         """Fetch (or clone) an EIPs repo"""
         return ensure_repo_updated(self.repo_path, self.repo)
 
-    def stats(self, commit: Optional[CommitRef] = None) -> EIPsStats:
+    def stats(self, commit: CommitRef | None = None) -> EIPsStats:
         """Return some aggregate data based on EIP files"""
         categories: list[EIP1Category] = []
         statuses: list[EIP1Status] = []

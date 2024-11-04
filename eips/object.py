@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict
 from typing_extensions import Self  # Support addded in 3.11
@@ -26,8 +26,8 @@ class CommitHash(str):
         return f"CommitHash(value={self.__str__()!r})"
 
 
-CommitRef = CommitHash | str
-FlexId = int | List[int]
+type CommitRef = CommitHash | str
+type FlexId = int | list[int]
 
 
 class EIP1Document(BaseModel):
@@ -44,20 +44,20 @@ class EIP1Document(BaseModel):
     # Optionals
     created: datetime | None = None
     title: str | None = None
-    author: List[str] | None = None
+    author: list[str] | None = None
     type: EIP1Type | None = None
-    updated: Optional[str] = None
-    discussions_to: Optional[str] = None
-    review_period_end: Optional[str] = None
-    category: Optional[EIP1Category] = None
-    requires: Optional[List[int]] = None
-    replaces: Optional[List[int]] = None
-    superseded_by: Optional[List[int]] = None
-    resolution: Optional[str] = None
-    commit: Optional[CommitHash] = None
+    updated: str | None = None
+    discussions_to: str | None = None
+    review_period_end: str | None = None
+    category: EIP1Category | None = None
+    requires: list[int] | None = None
+    replaces: list[int] | None = None
+    superseded_by: list[int] | None = None
+    resolution: str | None = None
+    commit: CommitHash | None = None
 
     @property
-    def headers(self) -> Dict[str, Any]:
+    def headers(self) -> dict[str, Any]:
         """Return all headers as a dictionary."""
         return self.model_dump(exclude={"body"})
 
@@ -104,7 +104,7 @@ class EIPsStats(BaseModel):
     """General aggregate stats for all EIPs"""
 
     errors: int
-    categories: List[EIP1Category]
-    statuses: List[EIP1Status]
+    categories: list[EIP1Category]
+    statuses: list[EIP1Status]
     total: int
-    types: List[EIP1Type]
+    types: list[EIP1Type]
