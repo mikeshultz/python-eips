@@ -23,13 +23,19 @@ Data processing:
 ### Show EIP
 
 ```bash
-eips show 20
+eips show 712
 ```
 
 ### Show EIP Headers
 
 ```bash
 eips show -i 4626
+```
+
+### Show ERC
+
+```bash
+eips show 20
 ```
 
 ## API Usage
@@ -100,6 +106,8 @@ hatch run lint
 ```
 
 ### Release
+
+To release, create and publish a GitHub package release 
 
 ```bash
 # Bump the version major/minor/patch

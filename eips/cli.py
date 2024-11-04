@@ -78,6 +78,47 @@ def ercs_cli(debug: bool) -> None:
         set_debug_logging()
 
 
+@ercs_cli.command("show", help="Display an ERC")
+@click.argument("erc_id", type=int)
+@click.option(
+    "-i", "--headers", "headers", help="Show headers only", is_flag=True, default=False
+)
+@click.option("-o", "--output", type=click.Choice(["json", "text"]), default="text")
+def ercs_show(erc_id: int, headers: bool, output: str) -> None:
+    """Display an ERC."""
+    ercs = ERCs()
+    ercs.repo_fetch()
+    res = ercs.get(erc_id)
+
+    if len(res) > 2:
+        click.echo("Found more than one ERC")
+        sys.exit(1)
+    elif len(res) < 1:
+        if output == "JSON":
+            click.echo("[]")
+        else:
+            click.echo("ERC not found")
+        sys.exit(0)
+
+    erc = res[0]
+
+    if output == "json":
+        exclude = dict()
+
+        if headers:
+            exclude["body"] = True
+
+        click.echo(erc.json(exclude=exclude))
+    else:
+        click.echo("---")
+        for k, v in erc.headers.items():
+            click.echo(f"{k}: {', '.join(v) if isinstance(v, list) else v}")
+        click.echo("---\n")
+
+        if not headers:
+            click.echo(erc.body)
+
+
 @ercs_cli.command("check", help="Check that ERCs in repo can be parsed")
 def ercs_check() -> None:
     """Check that ERCs in repo can be parsed."""
