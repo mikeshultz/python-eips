@@ -46,7 +46,6 @@ class EthereumDocs:
     def __getitem__(self, eip_id: int) -> EIP1Document | None:
         """Return an EIP-1 document by ID."""
         e = self.get(eip_id)
-        print("-__getitem__ e:", e)
         return e[0] if len(e) else None
 
     def __len__(self) -> int:
@@ -155,7 +154,6 @@ class EIPs(EthereumDocs):
         """Initialize an EIPs ETL processor."""
         super().__init__(freshness, repo, update_on_fetch, workdir)
         self.docs_dir = self.repo_path.joinpath("EIPS")
-        print("----------docs_dir", self.docs_dir)
 
     def get(
         self,
