@@ -4,6 +4,7 @@ import re
 from datetime import datetime
 from typing import TypeAlias
 
+from dateutil.parser import ParserError as DateutilParserError
 from dateutil.parser import parse as dateutil_parse
 
 from eips.enum import EIP1Category, EIP1Status, EIP1Type
@@ -27,15 +28,36 @@ HEADER_MAPPING = {
 }
 
 log = get_logger(__name__)
-header_translators = {
-    "author": lambda v: list(map(lambda x: x.strip(), v.split(","))),
-    "category": lambda v: EIP1Category.get_by_val(v),
-    "status": lambda v: EIP1Status.get_by_val(v),
-    "type": lambda v: EIP1Type.get_by_val(v),
-    # TODO: Vsauce, fragile lambdas here
-    "created": lambda v: dateutil_parse(v),
-    "requires": lambda v: list(map(lambda x: int(x.strip()), v.split(","))),
-}
+
+
+class ParseError(Exception):
+    """Error parsing a document."""
+
+
+class HeaderParseError(ParseError):
+    """Error parsing a header line."""
+
+
+def normalize_date(date: str) -> datetime:
+    """Normalize a date header to handle unusual cases.
+
+    This was specifically created to handle some EIPs that for whatever reason have a
+    list of dates for `updated`. We'll parse them all and select the most recent.
+    """
+    return dateutil_parse(sorted([d.strip() for d in date.split(",")])[-1])
+
+
+def normalize_id_list(list_string: str) -> list[int]:
+    """Normalize ID lists referecing other documents.
+
+    NOTE: This skips invali values.
+    """
+    if not list_string:
+        return list()
+
+    tvals = [x.strip() for x in list_string.split(",")]
+    valids = filter(lambda x: x.isdigit(), tvals)
+    return list(map(int, valids))
 
 
 def normalize_header(name: str) -> str:
@@ -69,7 +91,8 @@ def pluck_headers(eip_text: str) -> tuple[HeadersType, str]:
     headers: HeadersType = {}
     found_end = False
 
-    assert lines[0] == "---", "EIP Appears to be malformed"
+    if lines[0] != "---":
+        raise HeaderParseError("Header RFC-822 delimiter (---) not found")
 
     for ln in lines[1:]:
         line_count += 1
@@ -88,7 +111,11 @@ def pluck_headers(eip_text: str) -> tuple[HeadersType, str]:
 
             hval: OptionalHeaderValueType = None
             if hkey in header_translators:
-                hval = header_translators[hkey](matches.group(2))
+                raw_val = matches.group(2)
+                try:
+                    hval = header_translators[hkey](raw_val)
+                except DateutilParserError as err:
+                    raise ParseError(f"Failed to parse header date {raw_val}: {err}")
             else:
                 hval = matches.group(2)
 
@@ -98,3 +125,17 @@ def pluck_headers(eip_text: str) -> tuple[HeadersType, str]:
         raise SyntaxError("EIP Appears to be malformed.  Did not find end of headers")
 
     return (headers, "\n".join(lines[line_count + 1 :]))
+
+
+header_translators = {
+    "author": lambda v: list(map(lambda x: x.strip(), v.split(","))),
+    "category": lambda v: EIP1Category.get_by_val(v),
+    "status": lambda v: EIP1Status.get_by_val(v),
+    "type": lambda v: EIP1Type.get_by_val(v),
+    # TODO: Vsauce, fragile lambdas here
+    "created": lambda v: dateutil_parse(v),
+    "updated": lambda v: normalize_date(v),
+    "requires": normalize_id_list,
+    "replaces": normalize_id_list,
+    "superseded_by": normalize_id_list,
+}

@@ -1,6 +1,7 @@
 """General util funcs used by the package."""
 
 import re
+from datetime import datetime, timedelta, timezone
 
 from eips.const import DOC_FILENAME_PATTERN
 
@@ -14,3 +15,11 @@ def doc_id_from_file(fname: str) -> int:
         return int(match.group(2))
     except IndexError:
         return -1
+
+
+def gitstamp_to_dt(timestamp: int, timezone_secs: int = 0) -> datetime:
+    """Convert a git timestamp (and timezone in seconds) to a datetime object."""
+    return datetime.fromtimestamp(
+        timestamp,
+        tz=timezone(timedelta(seconds=timezone_secs)),
+    )

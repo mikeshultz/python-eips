@@ -1,9 +1,12 @@
 """Git utilities."""
 
+from collections.abc import Sequence
 from pathlib import Path
 
+from dulwich.objects import Commit as DulwichCommit
 from dulwich.porcelain import clone, pull
 from dulwich.repo import Repo
+from dulwich.walk import WalkEntry
 
 from eips.object import CommitHash
 
@@ -19,6 +22,18 @@ def is_dir_repo(repo_path: Path) -> bool:
 def git_rev(repo_path: Path) -> CommitHash:
     """Get the current revision/commit for the repo."""
     return CommitHash(Repo(str(repo_path)).refs[HEAD].decode(ENCODING))
+
+
+def git_history(repo_path: Path, sub_paths: Sequence[str] = list()) -> list[WalkEntry]:
+    """Get the commit history for the repo."""
+    return [c for c in Repo(str(repo_path)).get_walker(paths=sub_paths)]
+
+
+def git_commit_history(
+    repo_path: Path, sub_paths: Sequence[str] = list()
+) -> list[DulwichCommit]:
+    """Get the commit history for the repo."""
+    return [c.commit for c in Repo(str(repo_path)).get_walker(paths=sub_paths)]
 
 
 def ensure_repo(repo_path: Path, repo_uri: str) -> bool:

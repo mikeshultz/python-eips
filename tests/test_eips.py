@@ -8,19 +8,16 @@ from eips.enum import EIP1Category, EIP1Status, EIP1Type
 def test_eips() -> None:
     freshness = timedelta(seconds=4)
     repo = "http://nowhere.com/nothing.git"
-    update_on_fetch = True
     workdir = Path("/tmp/nowhere").expanduser().resolve()
 
     eips = EIPs(
         freshness=freshness,
         repo=repo,
-        update_on_fetch=update_on_fetch,
         workdir=workdir,
     )
 
     assert eips.freshness == freshness
     assert eips.repo == repo
-    assert eips.update_on_fetch is update_on_fetch
     assert eips.workdir == workdir
 
 
