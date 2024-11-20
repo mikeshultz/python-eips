@@ -14,4 +14,4 @@ requires: 3540, 3670
 ## Abstract
 
 Three new EVM jump instructions are introduced (`RJUMP`, `RJUMPI` and `RJUMPV`) which encode destinations as signed immediate values. These can be useful in the majority of (but not all) use cases and offer a cost reduction.
-"""
+"""  # noqa: E501

@@ -1,10 +1,8 @@
 from datetime import timedelta
 from pathlib import Path
 
-import pytest
-
-from eips.eips import REPO_DIR, EIPs, filter_eip_files
-from eips.enum import EIPCategory, EIPStatus, EIPType
+from eips.eips import REPO_DIR, EIPs, filter_doc_files
+from eips.enum import EIP1Category, EIP1Status, EIP1Type
 
 
 def test_eips() -> None:
@@ -37,23 +35,23 @@ def test_eips_parse_repo(eips: EIPs, workdir: Path) -> None:
     eips_path = workdir.joinpath(REPO_DIR).joinpath("EIPS")
     eips.repo_fetch()
     print("ttt eips_path.iterdir()", list(eips_path.iterdir()))
-    eip_files = filter_eip_files(eips_path)
+    eip_files = filter_doc_files(eips_path)
     print("ttttt eip_files:", eip_files)
     assert len(eip_files) > 0
     assert len(eips) == len(eip_files)
     eip_4626 = eips[4626]
     assert eip_4626 is not None
-    assert eip_4626.eip_id == 4626
+    assert eip_4626.id == 4626
 
     for eip in eips:
-        assert eip.eip_id > 0
+        assert eip.id > 0
         assert eip.is_valid
 
 
 def test_eips_stats(eips: EIPs, workdir: Path) -> None:
     stats = eips.stats()
     assert stats.total >= 686
-    assert len(stats.categories) <= len(EIPCategory)
-    assert len(stats.statuses) <= len(EIPStatus)
-    assert len(stats.types) <= len(EIPType)
+    assert len(stats.categories) <= len(EIP1Category)
+    assert len(stats.statuses) <= len(EIP1Status)
+    assert len(stats.types) <= len(EIP1Type)
     assert stats.errors == 0
