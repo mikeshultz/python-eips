@@ -2,7 +2,7 @@
 
 from abc import abstractmethod
 from collections.abc import Iterator, Sequence
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import cast
 
@@ -48,7 +48,9 @@ class EthereumDocs:
         self.repo_path = self.workdir.joinpath(REPO_DIR)
         self.docs_dir = self.repo_path.joinpath("docs")
 
-        self._last_fetch: datetime = datetime(year=1970, month=1, day=1, tzinfo=UTC)
+        self._last_fetch: datetime = datetime(
+            year=1970, month=1, day=1, tzinfo=timezone.utc
+        )
         self._current_commit: CommitHash | None = None
         self._current_commit_time: datetime | None = None
 
@@ -181,7 +183,7 @@ class EthereumDocs:
 
     def repo_fetch(self) -> CommitHash:
         """Fetch (or clone) an EIPs repo"""
-        self._last_fetch = datetime.now(tz=UTC)
+        self._last_fetch = datetime.now(tz=timezone.utc)
         self._current_commit = ensure_repo_updated(self.repo_path, self.repo)
         assert self.current_commit
         commit = self.git_repo.object_store[self.current_commit.encode("utf-8")]
@@ -219,7 +221,7 @@ class EthereumDocs:
         """Should the repo be automatically updated?"""
         if self.freshness is None:
             return False
-        return (datetime.now(tz=UTC) - self.last_fetch) > self.freshness
+        return (datetime.now(tz=timezone.utc) - self.last_fetch) > self.freshness
 
     def _get(
         self,
