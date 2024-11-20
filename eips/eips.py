@@ -4,9 +4,12 @@ from abc import abstractmethod
 from collections.abc import Iterator, Sequence
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from typing import cast
 
+from dulwich.objects import Blob
 from dulwich.objects import Commit as DulwichCommit
 from dulwich.repo import Repo
+from dulwich.walk import WalkEntry
 from pydantic import ValidationError
 
 from eips.const import DATA_PATH, ENCODING, IGNORE_FILES, REPO_DIR
@@ -47,11 +50,15 @@ class EthereumDocs:
 
         self._last_fetch: datetime = datetime(year=1970, month=1, day=1, tzinfo=UTC)
         self._current_commit: CommitHash | None = None
+        self._current_commit_time: datetime | None = None
 
     def __getitem__(self, eip_id: int) -> EIP1Document | None:
         """Return an EIP-1 document by ID."""
         e = self.get(eip_id)
-        return e[0] if len(e) else None
+        try:
+            return next(e)
+        except StopIteration:
+            return None
 
     def __len__(self) -> int:
         """Return the total number of documents."""
@@ -65,6 +72,11 @@ class EthereumDocs:
     def current_commit(self) -> CommitHash | None:
         """Return the current commit hash of the local document repo."""
         return self._current_commit
+
+    @property
+    def current_commit_time(self) -> datetime | None:
+        """Return the current commit time of the local document repo."""
+        return self._current_commit_time
 
     @property
     def last_fetch(self) -> datetime:
@@ -98,7 +110,7 @@ class EthereumDocs:
         doc_id: FlexId | None = None,
         *,
         commit: CommitRef | None = None,
-    ) -> Sequence[EIP1Document]:
+    ) -> Iterator[EIP1Document]:
         """Return document(s) by ID(s)."""
         pass
 
@@ -115,7 +127,7 @@ class EthereumDocs:
             self.repo_path, [str(subdir.joinpath(f"{doc_id}.md"))]
         )
 
-    def _get_doc_history(self, doc_id: int) -> Sequence[DulwichCommit]:
+    def _get_doc_history(self, doc_id: int) -> Sequence[WalkEntry]:
         subdir = self.docs_dir.relative_to(self.repo_path)
         return git_history(self.repo_path, [str(subdir.joinpath(f"{doc_id}.md"))])
 
@@ -156,14 +168,12 @@ class EthereumDocs:
                 break
             yield commit
 
-    def history(
-        self, until_commit: CommitHash | None = None
-    ) -> Iterator[DulwichCommit]:
+    def history(self, until_commit: CommitHash | None = None) -> Iterator[WalkEntry]:
         """Return the history for the repo."""
-        for commit in git_history(self.repo_path):
-            if commit.id == until_commit:
+        for entry in git_history(self.repo_path):
+            if entry.commit.id == until_commit:
                 break
-            yield commit
+            yield entry
 
     def logs(self) -> list[str]:
         """Return commit messages for the given EIP"""
@@ -173,6 +183,12 @@ class EthereumDocs:
         """Fetch (or clone) an EIPs repo"""
         self._last_fetch = datetime.now(tz=UTC)
         self._current_commit = ensure_repo_updated(self.repo_path, self.repo)
+        assert self.current_commit
+        commit = self.git_repo.object_store[self.current_commit.encode("utf-8")]
+        if isinstance(commit, DulwichCommit):  # Note: should always be true
+            self._current_commit_time = gitstamp_to_dt(
+                commit.commit_time, commit.commit_timezone
+            )
         return self._current_commit
 
     def stats(self, commit: CommitRef | None = None) -> EIPsStats:
@@ -205,6 +221,34 @@ class EthereumDocs:
             return False
         return (datetime.now(tz=UTC) - self.last_fetch) > self.freshness
 
+    def _get(
+        self,
+        doc_class: type[EIP1Document],
+        doc_id: FlexId | None = None,
+        *,
+        commit: CommitRef | None = None,
+    ) -> Iterator[EIP1Document]:
+        if self._should_autofetch:
+            self.repo_fetch()
+
+        # NOTE: the act of fetching above should ensure this is set
+        assert self.current_commit
+
+        if doc_id is None:
+            doc_id = []
+        elif not isinstance(doc_id, list):
+            doc_id = [doc_id]
+
+        # TODO: Update this for parse() changes
+        for fil in self._get_doc(doc_id, commit):
+            doc_id = doc_id_from_file(fil.name)
+            yield doc_class.parse(
+                doc_id,
+                self.current_commit,
+                self.current_commit_time or datetime.min,
+                fil.read_text(),
+            )
+
     def _all(
         self, doc_class: type[EIP1Document], until_commit: CommitHash | None = None
     ) -> Iterator[tuple[DulwichCommit, EIP1Document]]:
@@ -226,7 +270,8 @@ class EthereumDocs:
                 if not (change.new and change.new.path):
                     continue
 
-                doc_id = doc_id_from_file(Path(change.new.path.decode(ENCODING)).name)
+                filename = Path(change.new.path.decode(ENCODING)).name
+                doc_id = doc_id_from_file(filename)
 
                 # Not a design doc, skip
                 if doc_id < 1:
@@ -238,9 +283,14 @@ class EthereumDocs:
                     entry.commit.commit_time, entry.commit.commit_timezone
                 )
                 try:
-                    doc_body = self.git_repo.get_object(change.new.sha).data.decode(
-                        ENCODING
-                    )
+                    git_obj = self.git_repo.get_object(change.new.sha)
+                    if not isinstance(git_obj, Blob):
+                        log.error(
+                            f"Expected git object to be a Blob. Instead got"
+                            f" {type(git_obj)} (file: {filename})"
+                        )
+                        continue
+                    doc_body = git_obj.data.decode(ENCODING)
                 except UnicodeDecodeError as err:
                     raise err
 
@@ -274,19 +324,9 @@ class EIPs(EthereumDocs):
         doc_id: FlexId | None = None,
         *,
         commit: CommitRef | None = None,
-    ) -> Sequence[EIP]:
+    ) -> Iterator[EIP]:
         """Return EIP(s) by ID(s)."""
-        if self._should_autofetch:
-            self.repo_fetch()
-
-        # NOTE: the act of fetching above should ensure this is set
-        assert self.current_commit
-
-        # TODO: Update this for parse() changes
-        return [
-            EIP.parse(self.current_commit, fil.read_text())
-            for fil in self._get_doc(doc_id, commit)
-        ]
+        return cast(Iterator[EIP], self._get(EIP, doc_id, commit=commit))
 
     def all(
         self, until_commit: CommitHash | None = None
@@ -313,19 +353,9 @@ class ERCs(EthereumDocs):
         doc_id: FlexId | None = None,
         *,
         commit: CommitRef | None = None,
-    ) -> Sequence[ERC]:
-        """Return ERC(s) by ID(s)"""
-        if self._should_autofetch:
-            self.repo_fetch()
-
-        # NOTE: the act of fetching above should ensure this is set
-        assert self.current_commit
-
-        # TODO: Update this for parse() changes
-        return [
-            ERC.parse(self.current_commit, fil.read_text())
-            for fil in self._get_doc(doc_id, commit)
-        ]
+    ) -> Iterator[ERC]:
+        """Return ERC(s) by ID(s)."""
+        return cast(Iterator[ERC], self._get(ERC, doc_id, commit=commit))
 
     def all(
         self, until_commit: CommitHash | None = None
