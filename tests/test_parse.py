@@ -7,7 +7,7 @@ from ._const import TEST_EIP_HEADER
 
 
 def test_parse_eip() -> None:
-    eip = EIP.parse(CommitHash("abc0def"), TEST_EIP_HEADER)
+    eip = EIP.parse(4200, CommitHash("abc0def"), datetime.min, TEST_EIP_HEADER)
     assert eip.id == 4200
     assert eip.title == "EOF - Static relative jumps"
     assert (

@@ -9,7 +9,7 @@ from pydantic import BaseModel, ConfigDict
 from typing_extensions import Self  # Support addded in 3.11
 
 from eips.enum import DocumentType, EIP1Category, EIP1Status, EIP1Type
-from eips.parsing import pluck_headers
+from eips.parsing import ParseError, pluck_headers
 
 
 class CommitHash(str):
@@ -19,7 +19,7 @@ class CommitHash(str):
         """Create and validate a new CommitHash instance."""
         if len(value) not in (7, 40):
             raise ValueError(f"Invalid commit ref {value}")
-        return str.__new__(cls, value[:7])
+        return str.__new__(cls, value)
 
     def __repr__(self) -> str:
         """Return a string representation of the CommitHash."""
@@ -35,6 +35,8 @@ class EIP1Document(BaseModel):
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
+    document_type: DocumentType
+
     id: int
     # EIP-1 says "should" in one part and "must" when describing order for description
     description: str = ""
@@ -46,7 +48,7 @@ class EIP1Document(BaseModel):
     title: str | None = None
     author: list[str] | None = None
     type: EIP1Type | None = None
-    updated: str | None = None
+    updated: datetime | None = None
     discussions_to: str | None = None
     review_period_end: str | None = None
     category: EIP1Category | None = None
@@ -55,6 +57,10 @@ class EIP1Document(BaseModel):
     superseded_by: list[int] | None = None
     resolution: str | None = None
     commit: CommitHash | None = None
+    commit_time: datetime | None = None
+
+    error: bool = False
+    error_message: str | None = None
 
     @property
     def headers(self) -> dict[str, Any]:
@@ -69,16 +75,42 @@ class EIP1Document(BaseModel):
         return True
 
     @classmethod
-    def parse(cls, commit: CommitHash, raw_text: str) -> Self:
+    def parse(
+        cls, doc_id: int, commit: CommitHash, commit_time: datetime, raw_text: str
+    ) -> Self:
         """Parse a raw EIP1 document text into EIP1Document object."""
-        headers, body = pluck_headers(raw_text)
+        error = False
+        error_message = None
+
+        try:
+            headers, body = pluck_headers(raw_text)
+        except ParseError as err:
+            headers = {}
+            body = ""
+            error = True
+            error_message = str(err)
+            headers["status"] = EIP1Status.ERROR
 
         return cls.model_validate(
             {
+                "id": doc_id,  # NOTE: this may be overridden by headers
                 **headers,
                 "body": body,
                 "commit": commit,
+                "commit_time": commit_time,
+                "error": error,
+                "error_message": error_message,
             }
+        )
+
+    def __repr__(self):
+        """Return a string representation of the EIP1Document."""
+        return str(self)
+
+    def __str__(self):
+        """Return a string representation of the EIP1Document."""
+        return (
+            f"<{self.document_type.name} {self.id}: {self.title or self.description}>"
         )
 
 

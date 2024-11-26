@@ -18,14 +18,20 @@ class EIP1Status(str, Enum):
     WITHDRAWN = "Withdrawn"
 
     # TODO: Old statuses?  Not (currently) reflected in EIP-1
+    ABANDONED = "Abandoned"
     ACCEPTED = "Accepted"
     ACTIVE = "Active"
     DEFERRED = "Deferred"
     REJECTED = "Rejected"
+    REPLACED = "Replaced"
     SUPERSEDED = "Superseded"
 
     # Basically doesn't exist now
     MOVED = "Moved"
+
+    # There was some error processing the doc, like a parsing error. This is not part of
+    # EIP-1, but is useful for internal tracking.
+    ERROR = "Error"
 
     @classmethod
     def get_by_val(cls, v: str) -> Self | None:
