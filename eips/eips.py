@@ -47,6 +47,7 @@ class EthereumDocs:
         self.workdir = workdir
         self.repo_path = self.workdir.joinpath(REPO_DIR)
         self.docs_dir = self.repo_path.joinpath("docs")
+        self.assets_dir = self.repo_path.joinpath("assets")
 
         self._last_fetch: datetime = datetime(
             year=1970, month=1, day=1, tzinfo=timezone.utc
@@ -89,6 +90,17 @@ class EthereumDocs:
     def git_repo(self) -> Repo:
         """The Dulwich Git repo."""
         return Repo(str(self.repo_path))
+
+    @property
+    def assets(self) -> Iterator[tuple[Path, str]]:
+        """The static assets in Git repo."""
+        for root, dirs, files in self.assets_dir.walk(on_error=lambda x: log.error(x)):
+            for file in files:
+                fpath = root / file
+                if fpath.suffix in [".css", ".gitkeep", ".scss"]:
+                    continue
+                # yield (root / file).relative_to(self.assets_dir)
+                yield fpath, str(fpath.relative_to(self.assets_dir))
 
     @property
     def _files(self) -> list[Path]:
@@ -274,6 +286,7 @@ class EthereumDocs:
 
                 filename = Path(change.new.path.decode(ENCODING)).name
                 doc_id = doc_id_from_file(filename)
+                print("---doc_id:", doc_id)
 
                 # Not a design doc, skip
                 if doc_id < 1:
