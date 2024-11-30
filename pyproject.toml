@@ -71,7 +71,7 @@ coverage = "test --cov-config=pyproject.toml --cov=eips"
 lint = "ruff format"
 check = "ruff check && ruff format --check && pyright"
 
-[[tool.hatch.envs.hatch-test.matrix]]
+[[tool.hatch.envs.test.matrix]]
 python = ["3.10", "3.11", "3.12"]
 feature = ["dev"]
 
