@@ -19,12 +19,10 @@ jobs:
           restore-keys: ${{ runner.os }}-pip-
       - name: Install Hatch
         run: pipx install hatch
-
       - name: Lint check
         run: hatch run check
-
       - name: Run tests
-        run: hatch env run -e test test
+        run: hatch test --all
 
   test-release:
     needs: test
