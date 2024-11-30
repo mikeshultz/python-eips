@@ -26,7 +26,7 @@ def show(eip_id: int, headers: bool, output: str) -> None:
     """Display an EIP."""
     eips = EIPs()
     eips.repo_fetch()
-    res = eips.get(eip_id)
+    res = list(eips.get(eip_id))
 
     if len(res) > 2:
         click.echo("Found more than one EIP")
@@ -88,7 +88,7 @@ def ercs_show(erc_id: int, headers: bool, output: str) -> None:
     """Display an ERC."""
     ercs = ERCs()
     ercs.repo_fetch()
-    res = ercs.get(erc_id)
+    res = list(ercs.get(erc_id))
 
     if len(res) > 2:
         click.echo("Found more than one ERC")
