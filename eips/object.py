@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, TypeAlias
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 from typing_extensions import Self  # Support addded in 3.11
 
 from eips.enum import DocumentType, EIP1Category, EIP1Status, EIP1Type
@@ -59,8 +59,7 @@ class EIP1Document(BaseModel):
     commit: CommitHash | None = None
     commit_time: datetime | None = None
 
-    error: bool = False
-    error_message: str | None = None
+    errors: list[str] = Field(default_factory=list)
 
     @property
     def headers(self) -> dict[str, Any]:
@@ -79,16 +78,17 @@ class EIP1Document(BaseModel):
         cls, doc_id: int, commit: CommitHash, commit_time: datetime, raw_text: str
     ) -> Self:
         """Parse a raw EIP1 document text into EIP1Document object."""
-        error = False
-        error_message = None
+        errors: list[str] = list()
 
         try:
-            headers, body = pluck_headers(raw_text)
+            headers, body, parse_errors = pluck_headers(raw_text)
+
+            if parse_errors:
+                errors.extend(parse_errors)
         except ParseError as err:
             headers = {}
             body = ""
-            error = True
-            error_message = str(err)
+            errors.append(str(err))
             headers["status"] = EIP1Status.ERROR
 
         return cls.model_validate(
@@ -98,8 +98,7 @@ class EIP1Document(BaseModel):
                 "body": body,
                 "commit": commit,
                 "commit_time": commit_time,
-                "error": error,
-                "error_message": error_message,
+                "errors": errors,
             }
         )
 

@@ -84,12 +84,13 @@ def normalize_header_line(name: str) -> str:
     )
 
 
-def pluck_headers(eip_text: str) -> tuple[HeadersType, str]:
+def pluck_headers(eip_text: str) -> tuple[HeadersType, str, list[str]]:
     """Remove and return the RFC 822 headers from EIP text."""
     lines = eip_text.split("\n")
     line_count = 0
     headers: HeadersType = {}
     found_end = False
+    errors: list[str] = []
 
     if lines[0] != "---":
         raise HeaderParseError("Header RFC-822 delimiter (---) not found")
@@ -103,7 +104,9 @@ def pluck_headers(eip_text: str) -> tuple[HeadersType, str]:
         if not matches or len(matches.groups()) != 2:
             # TODO: Need to store this somewhere for later reference instead of just
             #       logging.
-            log.warning(f"EIP header line parse failed: {ln}")
+            msg = f"EIP header line parse failed: {ln}"
+            log.warning(msg)
+            errors.append(msg)
         else:
             normal_header = normalize_header(matches.group(1))
             # Translating to EIP object
@@ -115,16 +118,18 @@ def pluck_headers(eip_text: str) -> tuple[HeadersType, str]:
                 try:
                     hval = header_translators[hkey](raw_val)
                 except DateutilParserError as err:
-                    raise ParseError(f"Failed to parse header date {raw_val}: {err}")
+                    msg = f"Failed to parse header date {raw_val}: {err}"
+                    log.warning(msg)
+                    errors.append(msg)
             else:
                 hval = matches.group(2)
 
             headers[hkey] = hval
 
     if not found_end:
-        raise SyntaxError("EIP Appears to be malformed.  Did not find end of headers")
+        raise ParseError("EIP Appears to be malformed.  Did not find end of headers")
 
-    return (headers, "\n".join(lines[line_count + 1 :]))
+    return (headers, "\n".join(lines[line_count + 1 :]), errors)
 
 
 header_translators = {
